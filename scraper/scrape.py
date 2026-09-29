@@ -35,13 +35,18 @@ def stale_funds(data, exp):
 
 RX = re.compile(r"7-day SEC yield.{0,400}?(\d+\.\d+)\s*%.{0,400}?as of\s*(\d{1,2})/(\d{1,2})/(\d{4})", re.I | re.S)
 
-TEXT_JS = """() => { const out=[]; const walk=n=>{ if(n.nodeType===3) out.push(n.textContent);
-  else { if(n.shadowRoot) walk(n.shadowRoot); n.childNodes.forEach(walk); } }; walk(document.body); return out.join(' '); }"""
+TEXT_JS = """() => { const out=[]; const skip=['SCRIPT','STYLE','NOSCRIPT','TEMPLATE'];
+  const walk=n=>{ if(n.nodeType===3) out.push(n.textContent);
+    else if(n.nodeType===1 && skip.includes(n.tagName)) return;
+    else { if(n.shadowRoot) walk(n.shadowRoot); n.childNodes.forEach(walk); } };
+  walk(document.body); return out.join(' '); }"""
 
 def scrape_fund(page, fund):
-    seen = []
+    bodies = {}
     def on_resp(r):
-        if "json" in (r.headers.get("content-type") or ""): seen.append(r.url)
+        if "/vmf/api/" in r.url:
+            try: bodies[r.url] = r.text()
+            except Exception as e: bodies[r.url] = f"<unreadable: {e}>"
     page.on("response", on_resp)
     try:
         page.goto(URL.format(fund), wait_until="domcontentloaded", timeout=60000)
@@ -51,11 +56,11 @@ def scrape_fund(page, fund):
         page.remove_listener("response", on_resp)
     m = RX.search(text)
     if not m:
-        print(f"--- DEBUG {fund}: title={page.title()!r} url={page.url} chars={len(text)}")
-        print("Text start:", text[:500])
-        for hit in list(re.finditer(r"SEC|yield", text, re.I))[:6]:
-            print("  ...", text[max(0, hit.start() - 80):hit.end() + 120])
-        print("JSON responses:", *seen[:25], sep="\n  ")
+        print(f"--- DEBUG {fund}: visible text chars={len(text)}")
+        for hit in list(re.finditer(r"7-day|SEC yield|as of", text, re.I))[:8]:
+            print("  ...", text[max(0, hit.start() - 100):hit.end() + 150])
+        for u, b in bodies.items():
+            print(f"--- API {u}\n{b[:3000]}")
         raise RuntimeError(f"{fund}: couldn't find 7-day SEC yield / as-of date")
     mo, da, yr = int(m[2]), int(m[3]), int(m[4])
     return f"{yr:04d}-{mo:02d}-{da:02d}", m[1]
