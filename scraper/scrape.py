@@ -11,7 +11,6 @@ FUNDS = {  # ticker -> page URL (an empty URL skips that fund)
     "VUSXX": VG + "vusxx",
     "VMSXX": VG + "vmsxx",
     "TTTXX": "https://www.blackrock.com/cash/en-us/products/282697/blf-treasury-trust-fund",
-    "FIGXX": "https://fundresearch.fidelity.com/mutual-funds/summary/316175108",
 }
 CSV = Path(__file__).resolve().parent.parent / "docs" / "data" / "yields.csv"
 ET, NYSE = ZoneInfo("America/New_York"), holidays.NYSE()
@@ -67,25 +66,34 @@ def stale_funds(data, exp):
     return [f for f, u in FUNDS.items() if u and max([d for d, x in data if x == f], default="") < exp]
 
 def scrape_fund(page, fund):
-    bodies = {}
+    bodies, status = {}, None
     def on_resp(r):
         if "json" in (r.headers.get("content-type") or "") and re.search(r"yield|price|fund|nav", r.url, re.I):
             try: bodies[r.url] = r.text()
             except Exception: pass
     page.on("response", on_resp)
+    found, text = None, ""
     try:
-        page.goto(FUNDS[fund], wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(10000)
-        text = re.sub(r"\s+", " ", page.evaluate(TEXT_JS))
+        try:
+            status = page.goto(FUNDS[fund], wait_until="commit", timeout=60000).status
+        except Exception as e:
+            raise RuntimeError(f"{fund}: no response from {FUNDS[fund]} within 60s ({type(e).__name__}); "
+                               "the site may be blocking GitHub's servers") from None
+        for _ in range(15):                     # poll up to ~45s for the page to render the yield
+            page.wait_for_timeout(3000)
+            try: text = re.sub(r"\s+", " ", page.evaluate(TEXT_JS))
+            except Exception: continue          # page still navigating / body not ready
+            found = extract(text)
+            if found: break
     finally:
         page.remove_listener("response", on_resp)
-    found = extract(text)
     if not found:
-        print(f"--- DEBUG {fund}: title={page.title()!r} url={page.url} visible chars={len(text)}")
+        print(f"--- DEBUG {fund}: http={status} title={page.title()!r} url={page.url} visible chars={len(text)}")
+        print("Text start:", text[:400])
         for hit in list(re.finditer(r"yield|as of", text, re.I))[:8]:
             print("  ...", text[max(0, hit.start() - 100):hit.end() + 150])
         for u, b in list(bodies.items())[:5]: print(f"--- API {u}\n{b[:2000]}")
-        raise RuntimeError(f"{fund}: couldn't find 7-day SEC yield / as-of date")
+        raise RuntimeError(f"{fund}: couldn't find 7-day yield / as-of date")
     return found
 
 def main():

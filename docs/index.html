@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vanguard money market yields</title>
 <style>
-:root{--bg:#eef2f5;--ink:#14212b;--mute:#5d6b76;--card:#fff;--line:#d5dde3;--a:#0b6e6e;--ok:#1f7a3d;--warn:#b26a00;--bad:#b3261e}
+:root{--bg:#eef2f5;--ink:#14212b;--mute:#5d6b76;--card:#fff;--line:#d5dde3;--a:#14212b;--ok:#1f7a3d;--warn:#b26a00;--bad:#b3261e}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
 main{max-width:1000px;margin:0 auto;padding:20px 16px 48px}
 h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.05rem;margin:28px 0 10px}
@@ -26,7 +26,7 @@ input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6p
 .msg{color:var(--mute);margin:8px 0}
 </style></head><body><main>
 <h1>Money market 7-day SEC yields</h1>
-<p class="sub">VMFXX, VUSXX and VMSXX, collected daily from Vanguard's fund pages.</p>
+<p class="sub">VMFXX, VUSXX, VMSXX (Vanguard) and TTTXX (BlackRock), collected daily from each fund company's site.</p>
 <div class="card" id="quality"><div class="dot" id="dot"></div><div><b id="qhead">Loading…</b><span id="qdetail"></span></div></div>
 
 <h2>Yield history</h2>
@@ -47,8 +47,8 @@ input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6p
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-const FUNDS=["VMFXX","VUSXX","VMSXX"],COLORS={VMFXX:"#0b6e6e",VUSXX:"#c2571a",VMSXX:"#3b4cb8"};
-const RANGES=[["1M","Previous month"],["3M","Previous 3 months"],["YTD","Year to date"],["1Y","Previous year"],["5Y","Previous 5 years"],["MAX","Max history"]];
+const FUNDS=["VMFXX","VUSXX","VMSXX","TTTXX"],COLORS={VMFXX:"#96151d",VUSXX:"#6fbf4a",VMSXX:"#3b4cb8",TTTXX:"#1b5e20"};
+const RANGES=[["1M","1 month"],["6M","6 months"],["YTD","Year to date"],["1Y","1 year"],["5Y","5 years"],["MAX","Max"]];
 const $=id=>document.getElementById(id);
 const iso=d=>d.toISOString().slice(0,10);
 const utc=s=>new Date(s+"T00:00:00Z");
@@ -58,7 +58,7 @@ let byDate={},dates=[],chart;
 function shift(s,{m=0,y=0}){const d=utc(s);d.setUTCMonth(d.getUTCMonth()-m);d.setUTCFullYear(d.getUTCFullYear()-y);return iso(d)}
 function bounds(k){
   const e=todayS;
-  return [k==="1M"?shift(e,{m:1}):k==="3M"?shift(e,{m:3}):k==="YTD"?e.slice(0,4)+"-01-01":k==="1Y"?shift(e,{y:1}):k==="5Y"?shift(e,{y:5}):(dates[0]||e),e];
+  return [k==="1M"?shift(e,{m:1}):k==="6M"?shift(e,{m:6}):k==="YTD"?e.slice(0,4)+"-01-01":k==="1Y"?shift(e,{y:1}):k==="5Y"?shift(e,{y:5}):(dates[0]||e),e];
 }
 function weekdaysBetween(a,b){let n=0;for(let d=utc(a);;){d.setUTCDate(d.getUTCDate()+1);if(iso(d)>b)break;if(d.getUTCDay()%6)n++}return n}
 function inRange(a,b){return dates.filter(d=>d>=a&&d<=b)}
