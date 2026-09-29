@@ -33,7 +33,7 @@ def save(data):
 def stale_funds(data, exp):
     return [f for f in FUNDS if max([d for d, x in data if x == f], default="") < exp]
 
-RX = re.compile(r"7-day SEC yield.{0,400}?(\d+\.\d+)\s*%.{0,400}?as of\s*(\d{1,2})/(\d{1,2})/(\d{4})", re.I | re.S)
+RX = re.compile(r"7[- ]day SEC yield.{0,400}?(\d+\.\d+)\s*%.{0,400}?as of\s*(\d{1,2})/(\d{1,2})/(\d{4})", re.I | re.S)
 
 TEXT_JS = """() => { const out=[]; const skip=['SCRIPT','STYLE','NOSCRIPT','TEMPLATE'];
   const walk=n=>{ if(n.nodeType===3) out.push(n.textContent);
