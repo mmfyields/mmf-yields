@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vanguard money market yields</title>
+<style>
+:root{--bg:#eef2f5;--ink:#14212b;--mute:#5d6b76;--card:#fff;--line:#d5dde3;--a:#0b6e6e;--ok:#1f7a3d;--warn:#b26a00;--bad:#b3261e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.05rem;margin:28px 0 10px}
+.sub{color:var(--mute);margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+#quality{display:flex;gap:12px;align-items:flex-start}
+.dot{width:12px;height:12px;border-radius:50%;margin-top:6px;flex:none;background:var(--mute)}
+#quality b{display:block}#quality span{color:var(--mute);font-size:.9rem}
+.bar{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+button{font:inherit;border:1px solid var(--line);background:var(--card);border-radius:6px;padding:5px 12px;cursor:pointer}
+button[aria-pressed=true]{background:var(--a);color:#fff;border-color:var(--a)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.chartbox{position:relative;height:340px}
+.tablewrap{max-height:380px;overflow:auto;margin-top:12px;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;background:var(--card)}
+th,td{padding:6px 12px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}th{position:sticky;top:0;background:#f6f8fa}
+form{display:flex;flex-wrap:wrap;gap:12px;align-items:end}label{display:grid;gap:2px;font-size:.85rem;color:var(--mute)}
+input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6px}
+.msg{color:var(--mute);margin:8px 0}
+</style></head><body><main>
+<h1>Money market 7-day SEC yields</h1>
+<p class="sub">VMFXX, VUSXX and VMSXX, collected daily from Vanguard's fund pages.</p>
+<div class="card" id="quality"><div class="dot" id="dot"></div><div><b id="qhead">Loading…</b><span id="qdetail"></span></div></div>
+
+<h2>Yield history</h2>
+<div class="bar" id="ranges" role="group" aria-label="Date range"></div>
+<div class="card"><div class="chartbox"><canvas id="chart" aria-label="Yield chart" role="img"></canvas></div></div>
+<div class="tablewrap"><table id="tbl"></table></div>
+
+<h2>Look up a date range</h2>
+<div class="card">
+<form id="form">
+<label>From<input type="date" id="from" required></label>
+<label>To<input type="date" id="to" required></label>
+<button type="submit">Show yields</button>
+</form>
+<p class="msg" id="cmsg"></p>
+<div class="tablewrap" id="cwrap" hidden><table id="ctbl"></table></div>
+</div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const FUNDS=["VMFXX","VUSXX","VMSXX"],COLORS={VMFXX:"#0b6e6e",VUSXX:"#c2571a",VMSXX:"#3b4cb8"};
+const RANGES=[["1M","Previous month"],["3M","Previous 3 months"],["YTD","Year to date"],["1Y","Previous year"],["5Y","Previous 5 years"],["MAX","Max history"]];
+const $=id=>document.getElementById(id);
+const iso=d=>d.toISOString().slice(0,10);
+const utc=s=>new Date(s+"T00:00:00Z");
+const todayS=(()=>{const n=new Date();return iso(new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())))})();
+let byDate={},dates=[],chart;
+
+function shift(s,{m=0,y=0}){const d=utc(s);d.setUTCMonth(d.getUTCMonth()-m);d.setUTCFullYear(d.getUTCFullYear()-y);return iso(d)}
+function bounds(k){
+  const e=todayS;
+  return [k==="1M"?shift(e,{m:1}):k==="3M"?shift(e,{m:3}):k==="YTD"?e.slice(0,4)+"-01-01":k==="1Y"?shift(e,{y:1}):k==="5Y"?shift(e,{y:5}):(dates[0]||e),e];
+}
+function weekdaysBetween(a,b){let n=0;for(let d=utc(a);;){d.setUTCDate(d.getUTCDate()+1);if(iso(d)>b)break;if(d.getUTCDay()%6)n++}return n}
+function inRange(a,b){return dates.filter(d=>d>=a&&d<=b)}
+function fmt(v){return v==null?"–":v.toFixed(2)+"%"}
+function tableHTML(ds){
+  return "<thead><tr><th>Date</th>"+FUNDS.map(f=>`<th>${f}</th>`).join("")+"</tr></thead><tbody>"+
+    ds.slice().reverse().map(d=>`<tr><td>${d}</td>${FUNDS.map(f=>`<td>${fmt(byDate[d][f])}</td>`).join("")}</tr>`).join("")+"</tbody>";
+}
+function render(k){
+  [...$("ranges").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===k));
+  const [a,b]=bounds(k),ds=inRange(a,b);
+  if(chart)chart.destroy();
+  chart=new Chart($("chart"),{type:"line",data:{labels:ds,datasets:FUNDS.map(f=>({label:f,borderColor:COLORS[f],backgroundColor:COLORS[f],borderWidth:2,pointRadius:ds.length>90?0:3,spanGaps:true,tension:.15,data:ds.map(d=>byDate[d][f]??null)}))},
+    options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},scales:{y:{title:{display:true,text:"7-day SEC yield (%)"},ticks:{callback:v=>v.toFixed(2)}},x:{ticks:{maxTicksLimit:8}}},plugins:{tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}}}});
+  $("tbl").innerHTML=ds.length?tableHTML(ds):"<tbody><tr><td>No data in this range yet.</td></tr></tbody>";
+}
+function quality(){
+  const dot=$("dot");
+  if(!dates.length){dot.style.background="var(--bad)";$("qhead").textContent="No data yet";$("qdetail").textContent="Run the “Scrape Vanguard yields” workflow to collect the first values.";return}
+  const last=dates[dates.length-1],lag=weekdaysBetween(last,todayS);
+  let c,t;
+  if(lag<=1){c="--ok";t="Up to date"}else if(lag<=4){c="--warn";t="Possibly delayed (holiday or a missed run)"}else{c="--bad";t="Stale: the scraper may be failing"}
+  dot.style.background=`var(${c})`;$("qhead").textContent=t+" — latest value as of "+last;
+  const missing=weekdaysBetween(dates[0],last)-(dates.length-1);
+  const partial=FUNDS.filter(f=>byDate[last][f]==null);
+  $("qdetail").textContent=`Data covers ${dates[0]} to ${last} (${dates.length} days). ${missing>0?missing+" weekday(s) in this span have no data (market holidays or missed runs). ":"No gaps. "}${partial.length?"Latest date is missing "+partial.join(", ")+".":""}`;
+}
+function init(txt){
+  txt.trim().split("\n").slice(1).forEach(l=>{const [d,f,y]=l.split(",");if(!d)return;(byDate[d]??={})[f]=parseFloat(y)});
+  dates=Object.keys(byDate).sort();
+  RANGES.forEach(([k,label])=>{const b=document.createElement("button");b.textContent=label;b.dataset.k=k;b.onclick=()=>render(k);$("ranges").append(b)});
+  quality();render("1M");
+  if(dates.length){$("from").value=dates[Math.max(0,dates.length-10)];$("to").value=dates[dates.length-1]}
+}
+$("form").onsubmit=e=>{
+  e.preventDefault();const a=$("from").value,b=$("to").value;
+  if(a>b){$("cmsg").textContent="The start date must be on or before the end date.";$("cwrap").hidden=true;return}
+  const ds=inRange(a,b);
+  $("cmsg").textContent=ds.length?`${ds.length} day(s) with data between ${a} and ${b}.`:`No data between ${a} and ${b}.`+(dates.length?` Available: ${dates[0]} to ${dates[dates.length-1]}.`:"");
+  $("cwrap").hidden=!ds.length;$("ctbl").innerHTML=ds.length?tableHTML(ds):"";
+};
+fetch("data/yields.csv",{cache:"no-store"}).then(r=>{if(!r.ok)throw 0;return r.text()}).then(init)
+  .catch(()=>{$("qhead").textContent="Couldn't load data/yields.csv"});
+</script></body></html>
