@@ -23,11 +23,12 @@ Live site (GitHub Pages): https://mmfyields.github.io/mmf-yields/
 
 **From 2026-09-28 onward (scraped).** Values come from each fund company's public fund page, captured by the scraper above. Each row's date is the "as of" date shown on the page.
 
-**Before 2026-09-28 (Vanguard funds only, imported).** History for VMFXX, VUSXX and VMSXX from **2019-12-31 through 2026-09-28** was taken from the "Money Market Optimizer Spreadsheet", a Google Sheet shared on the Bogleheads forum: https://www.bogleheads.org/forum/viewtopic.php?t=401821. It was converted to this project's format (`history/vanguard-history-2019-2026.csv`) as follows:
+**Before 2026-09-28 (imported).** History for VMFXX, VUSXX, VMSXX and TTTXX from **2019-12-31 through 2026-09-28** was taken from the excellent "Money Market Optimizer Spreadsheet", a Google Sheet shared on the Bogleheads forum: https://www.bogleheads.org/forum/viewtopic.php?t=401821. Vanguard data was fetched with `vanguardGetCachedPriceYieldHistory()`, and BlackRock data was fetched with `cloudGetCachedSevenDayYieldHistory()`.
 
 - The source has a row for every calendar day. Weekend and NYSE-holiday rows, which repeat the previous day's value, were dropped to match the scraper's trading-day convention.
-- One value was corrected: VMFXX on 2026-09-14 read 1.00% in the source, an apparent data-entry error, between neighboring days at 3.63% (the four prior trading days and the following two are all 3.63%). It was replaced with 3.63%. This is an estimate, not an observed value.
-- TTTXX has no imported history; its record starts with the first scrape.
+- One value was corrected: VMFXX on 2026-09-14 read 1.00% in the source, while the four prior trading days and the following two are all 3.63%. It was replaced with 3.63%. This is an estimate, not an observed value.
+- TTTXX on 2024-12-02 and 2024-12-03 was excluded and appears as a gap. The source shows about 3.98% on those days between values near 4.50% on either side, while VUSXX, a similar Treasury fund, stayed near 4.55%. The value could not be confirmed, so it was left out rather than estimated.
+- TTTXX shows a small negative yield (-0.01%) on 2020-09-30, when yields were near zero. It was kept as it appears in the source but has not been verified.
 
 I have not independently verified the imported history against Vanguard's records, and its accuracy depends on the original spreadsheet.
 
