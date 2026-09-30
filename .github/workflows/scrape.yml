@@ -1,4 +1,4 @@
-name: Scrape Vanguard yields
+name: Scrape money market yields
 on:
   schedule:
     - cron: "20 22,23,0,1,2,4 * * *"   # UTC; evening/night ET. Script no-ops on weekends/holidays/when current.
