@@ -8,8 +8,10 @@
 main{max-width:1000px;margin:0 auto;padding:20px 16px 48px}
 h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.05rem;margin:28px 0 10px}
 .sub{color:var(--mute);margin:0 0 8px}
-.funds{list-style:none;margin:0 0 16px;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:4px 16px}
-.funds li{display:flex;align-items:center;gap:8px}
+.funds{list-style:none;margin:0 0 16px;padding:0;display:grid;grid-template-columns:repeat(2,max-content);gap:6px 40px}
+.funds li{display:flex;align-items:center;gap:8px;white-space:nowrap}
+@media (max-width:720px){.funds{grid-template-columns:1fr}}
+@media (max-width:480px){.funds li{white-space:normal}}
 .sw{width:12px;height:12px;border-radius:3px;flex:none}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
 #quality{display:flex;gap:12px;align-items:flex-start}
