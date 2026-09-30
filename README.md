@@ -7,7 +7,7 @@ A small, free, self-updating record of the **7-day SEC yield** for a few money m
 | VMFXX | Vanguard Federal Money Market Fund | Vanguard fund page |
 | VUSXX | Vanguard Treasury Money Market Fund | Vanguard fund page |
 | VMSXX | Vanguard Municipal Money Market Fund | Vanguard fund page |
-| TTTXX | BlackRock Treasury Trust Fund | BlackRock Cash site |
+| TTTXX | BlackRock Treasury Trust Fund | BlackRock fund page |
 
 Vanguard removed the price-history tool that showed past 7-day SEC yields, so this project keeps its own record.
 
