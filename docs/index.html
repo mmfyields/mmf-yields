@@ -24,9 +24,10 @@ th:first-child,td:first-child{text-align:left}th{position:sticky;top:0;backgroun
 form{display:flex;flex-wrap:wrap;gap:12px;align-items:end}label{display:grid;gap:2px;font-size:.85rem;color:var(--mute)}
 input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6px}
 .msg{color:var(--mute);margin:8px 0}
+#legtip{position:fixed;z-index:10;display:none;max-width:280px;padding:4px 8px;border-radius:4px;background:var(--ink);color:#fff;font-size:.8rem;pointer-events:none}
 </style></head><body><main>
 <h1>Money market 7-day SEC yields</h1>
-<p class="sub">VMFXX, VUSXX, VMSXX (Vanguard) and TTTXX (BlackRock), collected daily from each fund company's site.</p>
+<p class="sub">7-day SEC yields for Vanguard Federal Money Market Fund (VMFXX), Vanguard Treasury Money Market Fund (VUSXX), Vanguard Municipal Money Market Fund (VMSXX) and BlackRock Treasury Trust Fund (TTTXX), collected daily from each fund company's site.</p>
 <div class="card" id="quality"><div class="dot" id="dot"></div><div><b id="qhead">Loading…</b><span id="qdetail"></span></div></div>
 
 <h2>Yield history</h2>
@@ -45,15 +46,20 @@ input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6p
 <div class="tablewrap" id="cwrap" hidden><table id="ctbl"></table></div>
 </div>
 </main>
+<div id="legtip" role="tooltip"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 const FUNDS=["VMFXX","VUSXX","VMSXX","TTTXX"],COLORS={VMFXX:"#96151d",VUSXX:"#3d9a3d",VMSXX:"#3b4cb8",TTTXX:"#0d4a1f"};
+const NAMES={VMFXX:"Vanguard Federal Money Market Fund",VUSXX:"Vanguard Treasury Money Market Fund",VMSXX:"Vanguard Municipal Money Market Fund",TTTXX:"BlackRock Treasury Trust Fund"};
 const RANGES=[["1M","1 month"],["6M","6 months"],["YTD","Year to date"],["1Y","1 year"],["5Y","5 years"],["MAX","Max"]];
 const $=id=>document.getElementById(id);
 const iso=d=>d.toISOString().slice(0,10);
 const utc=s=>new Date(s+"T00:00:00Z");
 const todayS=(()=>{const n=new Date();return iso(new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())))})();
 let byDate={},dates=[],chart;
+const tipEl=$("legtip");
+function showTip(ev,t){tipEl.textContent=t;tipEl.style.display="block";tipEl.style.left=Math.max(4,Math.min(ev.clientX+12,innerWidth-tipEl.offsetWidth-8))+"px";tipEl.style.top=(ev.clientY+16)+"px"}
+function hideTip(){tipEl.style.display="none"}
 
 function shift(s,{m=0,y=0}){const d=utc(s);d.setUTCMonth(d.getUTCMonth()-m);d.setUTCFullYear(d.getUTCFullYear()-y);return iso(d)}
 function bounds(k){
@@ -64,15 +70,15 @@ function weekdaysBetween(a,b){let n=0;for(let d=utc(a);;){d.setUTCDate(d.getUTCD
 function inRange(a,b){return dates.filter(d=>d>=a&&d<=b)}
 function fmt(v){return v==null?"–":v.toFixed(2)+"%"}
 function tableHTML(ds){
-  return "<thead><tr><th>Date</th>"+FUNDS.map(f=>`<th>${f}</th>`).join("")+"</tr></thead><tbody>"+
+  return "<thead><tr><th>Date</th>"+FUNDS.map(f=>`<th title="${NAMES[f]}">${f}</th>`).join("")+"</tr></thead><tbody>"+
     ds.slice().reverse().map(d=>`<tr><td>${d}</td>${FUNDS.map(f=>`<td>${fmt(byDate[d][f])}</td>`).join("")}</tr>`).join("")+"</tbody>";
 }
 function render(k){
   [...$("ranges").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===k));
   const [a,b]=bounds(k),ds=inRange(a,b);
-  if(chart)chart.destroy();
+  hideTip();if(chart)chart.destroy();
   chart=new Chart($("chart"),{type:"line",data:{labels:ds,datasets:FUNDS.map(f=>({label:f,borderColor:COLORS[f],backgroundColor:COLORS[f],borderWidth:2,pointRadius:ds.length>90?0:3,spanGaps:true,tension:.15,data:ds.map(d=>byDate[d][f]??null)}))},
-    options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},scales:{y:{title:{display:true,text:"7-day SEC yield (%)"},ticks:{callback:v=>v.toFixed(2)}},x:{ticks:{maxTicksLimit:8}}},plugins:{tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}}}});
+    options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},scales:{y:{title:{display:true,text:"7-day SEC yield (%)"},ticks:{callback:v=>v.toFixed(2)}},x:{ticks:{maxTicksLimit:8}}},plugins:{legend:{onHover:(e,item)=>{if(e.native)showTip(e.native,NAMES[item.text]||item.text)},onLeave:hideTip},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}}}});
   $("tbl").innerHTML=ds.length?tableHTML(ds):"<tbody><tr><td>No data in this range yet.</td></tr></tbody>";
 }
 function quality(){
