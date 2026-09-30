@@ -1,6 +1,6 @@
 # Money market yield tracker
 
-A small, free, self-updating record of the **7-day SEC yield** for a few money market funds, with a static web page to chart and query it.
+A small, self-updating record of the **7-day SEC yield** for a few money market funds, with a static web page to chart and query it.
 
 | Ticker | Fund | Source |
 |--------|------|--------|
@@ -8,8 +8,6 @@ A small, free, self-updating record of the **7-day SEC yield** for a few money m
 | VUSXX | Vanguard Treasury Money Market Fund | Vanguard fund page |
 | VMSXX | Vanguard Municipal Money Market Fund | Vanguard fund page |
 | TTTXX | BlackRock Treasury Trust Fund | BlackRock fund page |
-
-Vanguard removed the price-history tool that showed past 7-day SEC yields, so this project keeps its own record.
 
 Live site (GitHub Pages): https://mmfyields.github.io/mmf-yields/
 
