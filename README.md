@@ -28,7 +28,7 @@ Live site (GitHub Pages): https://mmfyields.github.io/mmf-yields/
 - The source has a row for every calendar day. Weekend and NYSE-holiday rows, which repeat the previous day's value, were dropped to match the scraper's trading-day convention.
 - One value was corrected: VMFXX on 2026-09-14 read 1.00% in the source, while the four prior trading days and the following two are all 3.63%. It was replaced with 3.63%. This is an estimate, not an observed value.
 - TTTXX on 2024-12-02 and 2024-12-03 was excluded and appears as a gap. The source shows about 3.98% on those days between values near 4.50% on either side, while VUSXX, a similar Treasury fund, stayed near 4.55%. The value could not be confirmed, so it was left out rather than estimated.
-- TTTXX shows a small negative yield (-0.01%) on 2020-09-30, when yields were near zero. It was kept as it appears in the source but has not been verified.
+- TTTXX shows a small negative yield (-0.01%) on 2020-09-30. This was replaced with 0.00% to avoid blowing up the chart.
 
 I have not independently verified the imported history, and its accuracy depends on the original spreadsheet.
 
