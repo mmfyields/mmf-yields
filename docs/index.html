@@ -57,6 +57,7 @@ const iso=d=>d.toISOString().slice(0,10);
 const utc=s=>new Date(s+"T00:00:00Z");
 const todayS=(()=>{const n=new Date();return iso(new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())))})();
 let byDate={},dates=[],chart;
+const hidden=new Set(); // funds hidden via the legend; persists across range changes
 const tipEl=$("legtip");
 function showTip(ev,t){tipEl.textContent=t;tipEl.style.display="block";tipEl.style.left=Math.max(4,Math.min(ev.clientX+12,innerWidth-tipEl.offsetWidth-8))+"px";tipEl.style.top=(ev.clientY+16)+"px"}
 function hideTip(){tipEl.style.display="none"}
@@ -77,8 +78,8 @@ function render(k){
   [...$("ranges").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===k));
   const [a,b]=bounds(k),ds=inRange(a,b);
   hideTip();if(chart)chart.destroy();
-  chart=new Chart($("chart"),{type:"line",data:{labels:ds,datasets:FUNDS.map(f=>({label:f,borderColor:COLORS[f],backgroundColor:COLORS[f],borderWidth:2,pointRadius:ds.length>90?0:3,spanGaps:true,tension:.15,data:ds.map(d=>byDate[d][f]??null)}))},
-    options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},scales:{y:{title:{display:true,text:"7-day SEC yield (%)"},ticks:{callback:v=>v.toFixed(2)}},x:{ticks:{maxTicksLimit:8}}},plugins:{legend:{onHover:(e,item)=>{if(e.native)showTip(e.native,NAMES[item.text]||item.text)},onLeave:hideTip},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}}}});
+  chart=new Chart($("chart"),{type:"line",data:{labels:ds,datasets:FUNDS.map(f=>({label:f,hidden:hidden.has(f),borderColor:COLORS[f],backgroundColor:COLORS[f],borderWidth:2,pointRadius:ds.length>90?0:3,spanGaps:true,tension:.15,data:ds.map(d=>byDate[d][f]??null)}))},
+    options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},scales:{y:{title:{display:true,text:"7-day SEC yield (%)"},ticks:{callback:v=>v.toFixed(2)}},x:{ticks:{maxTicksLimit:8}}},plugins:{legend:{onClick:(e,item,legend)=>{const c=legend.chart,i=item.datasetIndex,vis=c.isDatasetVisible(i);c.setDatasetVisibility(i,!vis);vis?hidden.add(item.text):hidden.delete(item.text);c.update()},onHover:(e,item)=>{if(e.native)showTip(e.native,NAMES[item.text]||item.text)},onLeave:hideTip},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}}}});
   $("tbl").innerHTML=ds.length?tableHTML(ds):"<tbody><tr><td>No data in this range yet.</td></tr></tbody>";
 }
 function quality(){
