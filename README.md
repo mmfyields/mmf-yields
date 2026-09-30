@@ -13,9 +13,10 @@ Live site (GitHub Pages): https://mmfyields.github.io/mmf-yields/
 
 ## How it works
 
-- **`.github/workflows/scrape.yml`** runs on a schedule (evenings/nights US Eastern). A quick check step decides whether new data is due; if not, it exits without installing a browser.
+- **`.github/workflows/scrape.yml`** runs every 30 minutes. A quick check step decides whether any fund is due for a new value; if not, it exits without installing a browser.
 - **`scraper/scrape.py`** loads each fund page in headless Chromium (Playwright), finds the "7-day yield" label, and reads the nearby percentage and its **"as of" date**. Rows are keyed by that as-of date, so re-runs never create duplicates.
-- **Freshness and retries:** the script works out the latest expected trading day (weekends and NYSE holidays skipped). If a fund's page still shows an older as-of date, it waits and retries (3 attempts, 10 minutes apart); later scheduled runs try again.
+- **Freshness and retries:** The script attempts to pull yield information from fund pages around the time these pages have been observed to update their yield information in the past. These times are based on limited observation and may be further tuned as more observations are made. Attempts are made every 30 minutes until its as-of date reaches the latest posting day (weekdays that are not NYSE or US federal holidays). On weekends and holidays polling is throttled to about every 3 hours. Only the funds that are due get scraped.
+- **Posting-time log:** every scrape attempt is appended to `logs/poll_log.csv` (time in US Eastern, fund, as-of date shown, and whether it was `new`, `unchanged` or an `error`). The first `new` row for an as-of date is when the scraper first saw it, and the previous poll bounds that time from below. Run `python scraper/summarize_log.py` to see when each fund's values typically appear, then adjust `RELEASE` in `scraper/scrape.py` to match.
 - **`docs/data/yields.csv`** is the data store (`date,fund,yield`, yield in percent, e.g. `3.78`). The workflow commits changes back to the repo.
 - **`docs/index.html`** is the front end (Chart.js). It shows a data-quality banner (freshness, range of data, gaps), a chart and table with preset ranges (1 month, 6 months, YTD, 1 year, 5 years, max), and a custom date-range lookup.
 
@@ -35,7 +36,7 @@ I have not independently verified the imported history, and its accuracy depends
 ## Known limitations
 
 - Scrapers break when a site changes its layout. Failed runs show as errors in Actions and print debug output.
-- The holiday calendar is NYSE's. Money market funds follow the Federal Reserve/bond market calendar, which differs on a few days a year (for example Columbus Day and Veterans Day), so the scraper may retry on those days for a number that never appears.
+- Posting times and holiday handling are assumptions. The scraper treats NYSE and US federal holidays as days with no new value. If a fund posts on one of those days, or skips another day, the scraper may poll for a value that never appears until the next expected date takes over.
 - The front end's "gaps" indicator counts every missing weekday, including market holidays.
 - Different fund companies may calculate yields slightly differently, so compare across companies with care.
 - GitHub may pause scheduled workflows in a repo with no activity for 60 days; the daily data commits normally prevent this.

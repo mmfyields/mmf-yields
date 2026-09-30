@@ -1,6 +1,13 @@
 """Scrape 7-day SEC yields for money market funds into docs/data/yields.csv.
-Usage: python scraper/scrape.py [--check]   (--check only reports whether new data is due)"""
-import csv, os, re, sys, time, datetime as dt
+
+Each fund has its own expected posting time. A run only scrapes the funds whose latest
+as-of date is behind what should be published by now, so the workflow can poll every
+30 minutes cheaply and keep trying until the new value appears.
+
+Usage: python scraper/scrape.py [--check | --all]
+  --check  report (need=true/false) whether any fund is due; no browser needed
+  --all    scrape every fund now, regardless of schedule (used for manual runs)"""
+import csv, os, re, sys, datetime as dt
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import holidays
@@ -12,10 +19,16 @@ FUNDS = {  # ticker -> page URL (an empty URL skips that fund)
     "VMSXX": VG + "vmsxx",
     "TTTXX": "https://www.blackrock.com/cash/en-us/products/282697/blf-treasury-trust-fund",
 }
+# When polling starts for a given as-of date D: (calendar days after D, hour, minute) in US Eastern.
+# Observed: BlackRock posts D's value the evening of D (~8-9 pm); Vanguard posts it the next morning (~3-4 am).
+# Start a little earlier than observed so a few extra attempts catch the first appearance.
+RELEASE = {"VMFXX": (1, 2, 30), "VUSXX": (1, 2, 30), "VMSXX": (1, 2, 30), "TTTXX": (0, 19, 30)}
+OFFDAY_EVERY_HOURS = 3    # on weekends/holidays, poll only every few hours (a value may or may not post)
+
 CSV = Path(__file__).resolve().parent.parent / "docs" / "data" / "yields.csv"
-ET, NYSE = ZoneInfo("America/New_York"), holidays.NYSE()
-PUBLISH_HOUR_ET = 18      # don't expect today's number before this hour (ET)
-ATTEMPTS, WAIT_SEC = 3, 600
+LOG = Path(__file__).resolve().parent.parent / "logs" / "poll_log.csv"   # one row per fund per scrape attempt
+ET = ZoneInfo("America/New_York")
+NYSE, USFED = holidays.NYSE(), holidays.US()
 
 MONTH = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*"
 LABEL = re.compile(r"7[- ]?day\s+(?:SEC\s+)?yield", re.I)      # "7 day SEC yield", "7 Day SEC Yield", "7-Day Yield"
@@ -44,13 +57,28 @@ TEXT_JS = """() => { const out=[]; const skip=['SCRIPT','STYLE','NOSCRIPT','TEMP
     else { if(n.shadowRoot) walk(n.shadowRoot); n.childNodes.forEach(walk); } };
   walk(document.body); return out.join(' '); }"""
 
-def trading_day(d): return d.weekday() < 5 and d not in NYSE
+def posting_day(d):
+    """Days a fund publishes a new as-of value: weekdays that are neither NYSE nor US federal holidays."""
+    return d.weekday() < 5 and d not in NYSE and d not in USFED
 
-def expected_date():
-    now = dt.datetime.now(ET)
-    d = now.date() if now.hour >= PUBLISH_HOUR_ET else now.date() - dt.timedelta(days=1)
-    while not trading_day(d): d -= dt.timedelta(days=1)
-    return d.isoformat()
+def release_dt(fund, d):
+    days, h, m = RELEASE[fund]
+    return dt.datetime.combine(d + dt.timedelta(days=days), dt.time(h, m), tzinfo=ET)
+
+def expected_date(fund, now):
+    """Latest as-of date that should be posted for this fund by `now`."""
+    d = now.date()
+    for _ in range(14):
+        if posting_day(d) and release_dt(fund, d) <= now: return d
+        d -= dt.timedelta(days=1)
+
+def latest(data, fund): return max([d for d, f in data if f == fund], default="")
+
+def due_funds(data, now):
+    due = [f for f, u in FUNDS.items() if u and (e := expected_date(f, now)) and latest(data, f) < e.isoformat()]
+    if due and not posting_day(now.date()) and not (now.hour % OFFDAY_EVERY_HOURS == 0 and now.minute < 30):
+        return []     # weekend/holiday: throttle polling
+    return due
 
 def load():
     if not CSV.exists(): return {}
@@ -59,11 +87,8 @@ def load():
 
 def save(data):
     with open(CSV, "w", newline="") as f:
-        w = csv.writer(f); w.writerow(["date", "fund", "yield"])
+        w = csv.writer(f, lineterminator="\n"); w.writerow(["date", "fund", "yield"])
         for (d, fund), y in sorted(data.items()): w.writerow([d, fund, y])
-
-def stale_funds(data, exp):
-    return [f for f, u in FUNDS.items() if u and max([d for d, x in data if x == f], default="") < exp]
 
 def scrape_fund(page, fund):
     bodies, status = {}, None
@@ -96,36 +121,43 @@ def scrape_fund(page, fund):
         raise RuntimeError(f"{fund}: couldn't find 7-day yield / as-of date")
     return found
 
+def log_poll(fund, as_of, status, trigger, when):
+    """Append one poll result. status: new (as-of date never seen before) | unchanged | error."""
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    new_file = not LOG.exists()
+    with open(LOG, "a", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        if new_file: w.writerow(["polled_at_et", "fund", "as_of", "status", "trigger"])
+        w.writerow([when.isoformat(timespec="seconds"), fund, as_of, status, trigger])
+
 def main():
-    exp, data = expected_date(), load()
-    todo = stale_funds(data, exp)
+    now, data = dt.datetime.now(ET), load()
     if "--check" in sys.argv:
+        due = due_funds(data, now)
+        print(f"{now:%Y-%m-%d %H:%M %Z} due: {due or 'nothing'}")
         out = os.environ.get("GITHUB_OUTPUT")
-        line = f"need={'true' if todo else 'false'}\n"
-        (open(out, "a").write(line) if out else print(line, end=""))
+        if out: open(out, "a").write(f"need={'true' if due else 'false'}\n")
         return
-    for f, u in FUNDS.items():
-        if not u: print(f"{f}: skipped (no URL configured)")
-    if not todo: print("Up to date through", exp); return
+    todo = [f for f, u in FUNDS.items() if u] if "--all" in sys.argv else due_funds(data, now)
+    if not todo: print("Nothing due at", now.strftime("%Y-%m-%d %H:%M %Z")); return
     from playwright.sync_api import sync_playwright
-    broken = set()   # funds whose page couldn't be parsed; don't wait/retry on these
+    broken, trigger = [], ("manual" if "--all" in sys.argv else "schedule")
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page(user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36")
-        for attempt in range(1, ATTEMPTS + 1):
-            for fund in todo:
-                try:
-                    d, y = scrape_fund(page, fund)
-                    data[(d, fund)] = y; print(f"{fund}: {y}% as of {d}")
-                except Exception as e:
-                    print(e, file=sys.stderr); broken.add(fund)
-            save(data)
-            todo = [f for f in stale_funds(data, exp) if f not in broken]
-            if not todo: break
-            if attempt < ATTEMPTS:
-                print(f"Still waiting for {exp}: {todo}; retrying in {WAIT_SEC // 60} min"); time.sleep(WAIT_SEC)
+        for fund in todo:
+            try:
+                d, y = scrape_fund(page, fund)
+                log_poll(fund, d, "unchanged" if (d, fund) in data else "new", trigger, dt.datetime.now(ET))
+                data[(d, fund)] = y
+                exp = expected_date(fund, now)
+                note = "" if exp is None or d >= exp.isoformat() else f" (still waiting for {exp})"
+                print(f"{fund}: {y}% as of {d}{note}")
+            except Exception as e:
+                print(e, file=sys.stderr); broken.append(fund)
+                log_poll(fund, "", "error", trigger, dt.datetime.now(ET))
         browser.close()
-    if todo: print(f"Not yet published for {exp}: {todo} (next scheduled run will retry)")
-    if broken: sys.exit(1)
+    save(data)
+    if broken: sys.exit(1)   # parse failures only; "not posted yet" is normal and exits 0
 
 if __name__ == "__main__": main()

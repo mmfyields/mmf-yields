@@ -91,14 +91,21 @@ function render(k){
 }
 function quality(){
   const dot=$("dot");
-  if(!dates.length){dot.style.background="var(--bad)";$("qhead").textContent="No data yet";$("qdetail").textContent="Run the “Scrape Vanguard yields” workflow to collect the first values.";return}
+  if(!dates.length){dot.style.background="var(--bad)";$("qhead").textContent="No data yet";$("qdetail").textContent="Run the “Scrape money market yields” workflow to collect the first values.";return}
   const last=dates[dates.length-1],lag=weekdaysBetween(last,todayS);
+  const fl={};FUNDS.forEach(f=>{fl[f]=dates.filter(d=>byDate[d][f]!=null).pop()||null});
+  const behind=FUNDS.filter(f=>fl[f]!==last);
+  const stalled=behind.filter(f=>!fl[f]||weekdaysBetween(fl[f],last)>1);
+  const waiting=behind.filter(f=>!stalled.includes(f));
   let c,t;
   if(lag<=1){c="--ok";t="Up to date"}else if(lag<=4){c="--warn";t="Possibly delayed (holiday or a missed run)"}else{c="--bad";t="Stale (the scraper may be failing)"}
+  if(stalled.length&&c==="--ok")c="--warn";
   dot.style.background=`var(${c})`;$("qhead").textContent=t+": latest value as of "+last;
   const missing=weekdaysBetween(dates[0],last)-(dates.length-1);
-  const partial=FUNDS.filter(f=>byDate[last][f]==null);
-  $("qdetail").textContent=`Data covers ${dates[0]} to ${last} (${dates.length} days). ${missing>0?missing+" weekday(s) in this span have no data (market holidays or missed runs). ":"No gaps. "}${partial.length?"Latest date is missing "+partial.join(", ")+".":""}`;
+  let note="";
+  if(waiting.length)note+=` Waiting on the ${last} value for ${waiting.join(", ")}; fund pages update at different times of day, so this usually clears within hours.`;
+  if(stalled.length)note+=` Possibly stale: ${stalled.map(f=>`${f} (latest value ${fl[f]?"as of "+fl[f]:"none yet"})`).join(", ")}.`;
+  $("qdetail").textContent=`Data covers ${dates[0]} to ${last} (${dates.length} days). ${missing>0?missing+" weekday(s) in this span have no data (market holidays or missed runs).":"No gaps."}${note}`;
 }
 function init(txt){
   txt.trim().split("\n").slice(1).forEach(l=>{const [d,f,y]=l.split(",");if(!d)return;(byDate[d]??={})[f]=parseFloat(y)});
