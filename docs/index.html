@@ -7,7 +7,10 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
 main{max-width:1000px;margin:0 auto;padding:20px 16px 48px}
 h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.05rem;margin:28px 0 10px}
-.sub{color:var(--mute);margin:0 0 16px}
+.sub{color:var(--mute);margin:0 0 8px}
+.funds{list-style:none;margin:0 0 16px;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:4px 16px}
+.funds li{display:flex;align-items:center;gap:8px}
+.sw{width:12px;height:12px;border-radius:3px;flex:none}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
 #quality{display:flex;gap:12px;align-items:flex-start}
 .dot{width:12px;height:12px;border-radius:50%;margin-top:6px;flex:none;background:var(--mute)}
@@ -27,7 +30,8 @@ input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6p
 #legtip{position:fixed;z-index:10;display:none;max-width:280px;padding:4px 8px;border-radius:4px;background:var(--ink);color:#fff;font-size:.8rem;pointer-events:none}
 </style></head><body><main>
 <h1>Money market 7-day SEC yields</h1>
-<p class="sub">7-day SEC yields for Vanguard Federal Money Market Fund (VMFXX), Vanguard Treasury Money Market Fund (VUSXX), Vanguard Municipal Money Market Fund (VMSXX) and BlackRock Treasury Trust Fund (TTTXX), collected daily from each fund company's site.</p>
+<p class="sub">7-day SEC yields, collected daily from each fund company's site:</p>
+<ul class="funds" id="funds"></ul>
 <div class="card" id="quality"><div class="dot" id="dot"></div><div><b id="qhead">Loading…</b><span id="qdetail"></span></div></div>
 
 <h2>Yield history</h2>
@@ -57,6 +61,7 @@ const iso=d=>d.toISOString().slice(0,10);
 const utc=s=>new Date(s+"T00:00:00Z");
 const todayS=(()=>{const n=new Date();return iso(new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())))})();
 let byDate={},dates=[],chart;
+$("funds").innerHTML=FUNDS.map(f=>`<li><span class="sw" style="background:${COLORS[f]}"></span><span>${NAMES[f]} (<b>${f}</b>)</span></li>`).join("");
 const hidden=new Set(); // funds hidden via the legend; persists across range changes
 const tipEl=$("legtip");
 function showTip(ev,t){tipEl.textContent=t;tipEl.style.display="block";tipEl.style.left=Math.max(4,Math.min(ev.clientX+12,innerWidth-tipEl.offsetWidth-8))+"px";tipEl.style.top=(ev.clientY+16)+"px"}
@@ -87,8 +92,8 @@ function quality(){
   if(!dates.length){dot.style.background="var(--bad)";$("qhead").textContent="No data yet";$("qdetail").textContent="Run the “Scrape Vanguard yields” workflow to collect the first values.";return}
   const last=dates[dates.length-1],lag=weekdaysBetween(last,todayS);
   let c,t;
-  if(lag<=1){c="--ok";t="Up to date"}else if(lag<=4){c="--warn";t="Possibly delayed (holiday or a missed run)"}else{c="--bad";t="Stale: the scraper may be failing"}
-  dot.style.background=`var(${c})`;$("qhead").textContent=t+" — latest value as of "+last;
+  if(lag<=1){c="--ok";t="Up to date"}else if(lag<=4){c="--warn";t="Possibly delayed (holiday or a missed run)"}else{c="--bad";t="Stale (the scraper may be failing)"}
+  dot.style.background=`var(${c})`;$("qhead").textContent=t+": latest value as of "+last;
   const missing=weekdaysBetween(dates[0],last)-(dates.length-1);
   const partial=FUNDS.filter(f=>byDate[last][f]==null);
   $("qdetail").textContent=`Data covers ${dates[0]} to ${last} (${dates.length} days). ${missing>0?missing+" weekday(s) in this span have no data (market holidays or missed runs). ":"No gaps. "}${partial.length?"Latest date is missing "+partial.join(", ")+".":""}`;
