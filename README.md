@@ -27,28 +27,11 @@ Live site (GitHub Pages): https://mmfyields.github.io/mmf-yields/
 
 **Before 2026-09-28 (Vanguard funds only, imported).** History for VMFXX, VUSXX and VMSXX from **2019-12-31 through 2026-09-28** was taken from the "Money Market Optimizer Spreadsheet", a Google Sheet shared on the Bogleheads forum: https://www.bogleheads.org/forum/viewtopic.php?t=401821. It was converted to this project's format (`history/vanguard-history-2019-2026.csv`) as follows:
 
-- Decimal values were multiplied by 100 to give percentages (`0.0378` becomes `3.78`), rounded to two decimals.
 - The source has a row for every calendar day. Weekend and NYSE-holiday rows, which repeat the previous day's value, were dropped to match the scraper's trading-day convention.
 - One value was corrected: VMFXX on 2026-09-14 read 1.00% in the source, an apparent data-entry error, between neighboring days at 3.63% (the four prior trading days and the following two are all 3.63%). It was replaced with 3.63%. This is an estimate, not an observed value.
-- The 2026-09-28 values match the scraped values.
 - TTTXX has no imported history; its record starts with the first scrape.
 
 I have not independently verified the imported history against Vanguard's records, and its accuracy depends on the original spreadsheet.
-
-To merge another file in the same format without overwriting existing rows:
-
-```
-python scraper/merge_history.py path/to/history.csv
-```
-
-## Setup
-
-1. Push this repo to GitHub (public repos get free Actions minutes).
-2. **Settings > Pages:** deploy from branch `main`, folder `/docs`.
-3. **Settings > Actions > General > Workflow permissions:** allow read and write.
-4. **Actions:** run "Scrape money market yields" once manually to test.
-
-To add a fund, add a ticker and page URL to `FUNDS` in `scraper/scrape.py` and to `FUNDS`/`COLORS` in `docs/index.html`. Check the debug output on the first run, since each site words and orders its yield differently.
 
 ## Known limitations
 
