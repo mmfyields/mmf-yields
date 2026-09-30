@@ -25,10 +25,10 @@ Live site (GitHub Pages): https://mmfyields.github.io/mmf-yields/
 
 **Before 2026-09-28 (imported).** History for VMFXX, VUSXX, VMSXX and TTTXX from **2019-12-31 through 2026-09-28** was taken from the "Money Market Optimizer Spreadsheet", a very useful Google Sheet shared on the Bogleheads forum: https://www.bogleheads.org/forum/viewtopic.php?t=401821. Vanguard data was fetched with `vanguardGetCachedPriceYieldHistory()`, and BlackRock data was fetched with `cloudGetCachedSevenDayYieldHistory()`.
 
-- The source has a row for every calendar day. Weekend and NYSE-holiday rows, which repeat the previous day's value, were dropped to match the scraper's trading-day convention.
+- The source had a row for every calendar day. Weekend and NYSE-holiday rows, which repeat the previous day's value, were dropped to match the scraper's trading-day convention.
 - One value was corrected: VMFXX on 2026-09-14 read 1.00% in the source, while the four prior trading days and the following two are all 3.63%. It was replaced with 3.63%. This is an estimate, not an observed value.
-- TTTXX on 2024-12-02 and 2024-12-03 was excluded and appears as a gap. The source shows about 3.98% on those days between values near 4.50% on either side, while VUSXX, a similar Treasury fund, stayed near 4.55%. The value could not be confirmed, so it was left out rather than estimated.
-- TTTXX shows a small negative yield (-0.01%) on 2020-09-30. This was replaced with 0.00% to avoid blowing up the chart.
+- TTTXX on 2024-12-02 and 2024-12-03 was excluded and appears as a gap. The source showed about 3.98% on those days between values near 4.50% on either side, while VUSXX, a similar Treasury fund, stayed near 4.55%. The value could not be confirmed, so it was left out rather than estimated.
+- TTTXX showed a small negative yield (-0.01%) on 2020-09-30. While it's certainly possible this is accurate, as rates were near zero at the time, it still seems suspicious. In any case, this was replaced with 0.00% to avoid blowing up the chart.
 
 I have not independently verified the imported history, and its accuracy depends on the original spreadsheet.
 
