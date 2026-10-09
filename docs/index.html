@@ -29,9 +29,12 @@ th:first-child,td:first-child{text-align:left}th{position:sticky;top:0;backgroun
 form{display:flex;flex-wrap:wrap;gap:12px;align-items:end}label{display:grid;gap:2px;font-size:.85rem;color:var(--mute)}
 input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6px}
 .msg{color:var(--mute);margin:8px 0}
-.tax{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end;margin:0 0 12px}
-.tax .chk{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:.95rem;padding-bottom:6px}
-.tax input[type=number]{width:7rem}.tax .msg{flex-basis:100%;margin:0;font-size:.85rem}
+.tax{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;margin:0 0 12px;padding:8px 14px}
+.tax label{display:flex;align-items:center;gap:6px;color:var(--ink);font-size:.95rem}
+.tax input[type=number]{width:4.5rem;padding:3px 6px}
+.tax .more{margin-left:auto;border:0;background:none;color:var(--a);padding:2px 4px;font-size:.9rem}
+.tax .more:hover{text-decoration:underline}
+.tax .msg{flex-basis:100%;margin:2px 0 0;font-size:.85rem}
 caption{text-align:left;padding:6px 12px;color:var(--mute);font-size:.85rem}
 #legtip{position:fixed;z-index:10;display:none;max-width:280px;padding:4px 8px;border-radius:4px;background:var(--ink);color:#fff;font-size:.8rem;pointer-events:none}
 </style></head><body><main>
@@ -43,10 +46,11 @@ caption{text-align:left;padding:6px 12px;color:var(--mute);font-size:.85rem}
 <h2>Yield history</h2>
 <div class="bar" id="ranges" role="group" aria-label="Date range"></div>
 <div class="card tax">
-<label class="chk"><input type="checkbox" id="taxon"> Show taxable-equivalent yields</label>
-<label>Federal marginal rate (%)<input type="number" id="fed" min="0" max="60" step="0.1" inputmode="decimal" placeholder="e.g. 24"></label>
-<label>State marginal rate (%)<input type="number" id="st" min="0" max="60" step="0.1" inputmode="decimal" placeholder="e.g. 5"></label>
-<p class="msg" id="taxnote"></p>
+<label><input type="checkbox" id="taxon"> Show taxable-equivalent yields</label>
+<label>Federal rate <input type="number" id="fed" min="0" max="60" step="0.1" inputmode="decimal" placeholder="24" title="Federal marginal tax rate (%)">%</label>
+<label>State rate <input type="number" id="st" min="0" max="60" step="0.1" inputmode="decimal" placeholder="5" title="State marginal tax rate (%)">%</label>
+<button type="button" class="more" id="taxmore" aria-expanded="false" aria-controls="taxnote">Details ▾</button>
+<p class="msg" id="taxnote" hidden></p>
 </div>
 <div class="card"><div class="chartbox"><canvas id="chart" aria-label="Yield chart" role="img"></canvas></div></div>
 <div class="tablewrap"><table id="tbl"></table></div>
@@ -75,15 +79,19 @@ const todayS=(()=>{const n=new Date();return iso(new Date(Date.UTC(n.getFullYear
 let byDate={},dates=[],chart;
 $("funds").innerHTML=FUNDS.map(f=>`<li><span class="sw" style="background:${COLORS[f]}"></span><span>${NAMES[f]} (<b>${f}</b>)</span></li>`).join("");
 const TAXKEY={VUSXX:"s",TTTXX:"s",VMSXX:"f"}; // rate whose tax advantage the fund has; VMFXX is the taxable baseline
-const tax={on:false,f:0,s:0};let cur="1M";
+const tax={on:false,f:0,s:0,open:false};let cur="1M";
 const rate=v=>{const x=parseFloat(v);return isNaN(x)?0:Math.min(60,Math.max(0,x))};
 function adj(f,v){if(!tax.on||v==null)return v;const k=TAXKEY[f];return k?v/(1-(k==="f"?tax.f:tax.s)/100):v}
 function taxNote(){$("taxnote").textContent=tax.on?"VMFXX is shown as reported. VUSXX and TTTXX = yield ÷ (1 − state rate). VMSXX (assumed out-of-state) = yield ÷ (1 − federal rate). Rates apply to all dates. Estimates only, not tax advice.":"Enter your marginal tax rates and turn this on to compare the funds on a taxable-equivalent basis. If the 3.8% net investment income tax applies to you, include it in your federal rate."}
-function taxChanged(){tax.on=$("taxon").checked;tax.f=rate($("fed").value);tax.s=rate($("st").value);try{localStorage.setItem("mmf-tax",JSON.stringify(tax))}catch(e){}taxNote();render(cur);if(!$("cwrap").hidden)lookup()}
+function setTaxOpen(o){tax.open=o;$("taxnote").hidden=!o;$("taxmore").setAttribute("aria-expanded",o);$("taxmore").textContent=o?"Hide details ▴":"Details ▾"}
+function saveTax(){try{localStorage.setItem("mmf-tax",JSON.stringify(tax))}catch(e){}}
+function taxChanged(){tax.on=$("taxon").checked;tax.f=rate($("fed").value);tax.s=rate($("st").value);taxNote();saveTax();render(cur);if(!$("cwrap").hidden)lookup()}
 function initTax(){
   try{Object.assign(tax,JSON.parse(localStorage.getItem("mmf-tax")||"{}"))}catch(e){}
-  tax.on=!!tax.on;tax.f=rate(tax.f);tax.s=rate(tax.s);
+  tax.on=!!tax.on;tax.open=!!tax.open;tax.f=rate(tax.f);tax.s=rate(tax.s);
   $("taxon").checked=tax.on;$("fed").value=tax.f||"";$("st").value=tax.s||"";taxNote();
+  setTaxOpen(tax.open);
+  $("taxmore").addEventListener("click",()=>{setTaxOpen(!tax.open);saveTax()});
   $("taxon").addEventListener("change",taxChanged);
   ["fed","st"].forEach(id=>$(id).addEventListener("input",()=>{if($(id).value!=="")$("taxon").checked=true;taxChanged()}));
 }
