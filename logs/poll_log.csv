@@ -233,3 +233,7 @@ polled_at_et,fund,as_of,status,trigger
 2026-11-17T13:28:18-05:00,VUSXX,2026-11-16,new,schedule
 2026-11-17T13:28:22-05:00,VMSXX,2026-11-16,new,schedule
 2026-11-17T20:14:27-05:00,TTTXX,2026-11-16,unchanged,schedule
+2026-11-18T04:03:35-05:00,VMFXX,2026-11-16,unchanged,schedule
+2026-11-18T04:03:39-05:00,VUSXX,2026-11-17,new,schedule
+2026-11-18T04:03:43-05:00,VMSXX,2026-11-17,new,schedule
+2026-11-18T04:03:48-05:00,TTTXX,2026-11-17,new,schedule
